@@ -69,6 +69,7 @@ extern void Glucose_Init( Abc_Frame_t *pAbc );
 extern void Glucose_End( Abc_Frame_t * pAbc );
 extern void Glucose2_Init( Abc_Frame_t *pAbc );
 extern void Glucose2_End( Abc_Frame_t * pAbc );
+extern void Adgmap_Init( Abc_Frame_t * pAbc );
 
 static Abc_FrameInitializer_t* s_InitializerStart = NULL;
 static Abc_FrameInitializer_t* s_InitializerEnd = NULL;
@@ -125,6 +126,7 @@ void Abc_FrameInit( Abc_Frame_t * pAbc )
     Test_Init( pAbc );
     Glucose_Init( pAbc );
     Glucose2_Init( pAbc );
+    Agdmap_Init( pAbc );
     for( p = s_InitializerStart ; p ; p = p->next )
         if(p->init)
             p->init(pAbc);

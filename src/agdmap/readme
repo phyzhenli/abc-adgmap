@@ -1,0 +1,8 @@
+Agdmap is a technology mapping algorithm with adaptive gate decomposition [1].
+It is a cut enumeration based mapping algorithm with bin packing for
+simultaneous wide gate decompostion, which is a patent pending technology.
+The source code is provided here for research and evaluation purpose.
+For commercial usage, please contact Prof. Chang Wu at wuchang@fudan.edu.cn.
+
+[1] L. Fan and C. Wu, FPGA Technology Mapping with Adaptive Gate Decompostion, ACM/SIGDA FPGA International Symposium on FPGAs, 2023.
+
