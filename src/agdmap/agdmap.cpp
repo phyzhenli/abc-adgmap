@@ -1018,7 +1018,7 @@ static int node_counter = 0;
     // printf("exp: %s\n", exp.c_str());
     for (int i = 0; i < inputs.size(); ++i)
     {
-      qmp.addVar(inputs[i]->name());
+      qmp.addVar("n" + std::to_string(inputs[i]->getId()));
     }
     qmp.set_output("O5");
     uint64_t truth = qmp.getTruthValue(exp);

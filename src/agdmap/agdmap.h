@@ -255,7 +255,8 @@ public:
     depth_(dep), 
     root_(root), 
     sign_(sign),
-    func_(root->name())
+    //func_(root->name())
+    func_("n" + std::to_string(root_->getId()))
   { 
     inputs_.emplace_back(root);
   }
