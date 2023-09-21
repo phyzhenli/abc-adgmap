@@ -1051,21 +1051,17 @@ static int node_counter = 0;
       pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
       Abc_ObjAddFanin(pNet, pNode);
     }
-    // create PO.
-    for (Node *po : Po_)
-    {
-      strcpy(pWord, po->name().c_str());
-      pNode = Abc_NtkCreateObj(pNtkNetlist, ABC_OBJ_PO);
-      Abc_ObjAssignName(pNode, pWord, NULL);
-      pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
-      Abc_ObjAddFanin(pNode, pNet);
-    }
-
-    // bind PO and it's input and.
     std::set<Node *> bound;
     std::map<Node *, Function> funcs;
     for (Node *node : Po_)
     {
+      // 1. create PO (abc node).
+      strcpy(pWord, node->name().c_str());
+      pNode = Abc_NtkCreateObj(pNtkNetlist, ABC_OBJ_PO);
+      Abc_ObjAssignName(pNode, pWord, NULL);
+      pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
+      Abc_ObjAddFanin(pNode, pNet);
+      // 2. bind PO and it's input and.
       Node *fanin = node->fanin(0);
       if (fanin->isAnd())
       {
@@ -1073,6 +1069,9 @@ static int node_counter = 0;
         if (node->complement(0))
         {
           func = ~func;
+          if (best_sol_->weight_[fanin] > 1) {
+            Abc_ObjSetFaninC(pNode, 0);
+          }
         }
         funcs[node] = func;
         if (best_sol_->weight_[fanin] == 1)
@@ -1103,6 +1102,7 @@ static int node_counter = 0;
           pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
           assert(pNet);
           pNode = Abc_NtkCreateNode(pNtkNetlist);
+          Abc_ObjAssignName(pNode, pWord, NULL);
           pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
           Abc_ObjAddFanin(pNet, pNode);
           // connect to the fanin net
@@ -1119,8 +1119,9 @@ static int node_counter = 0;
 
     for (Node *po_node : Po_)
     {
+      Node *fanin = po_node->fanin(0);
       strcpy(pWord, po_node->name().c_str());
-      if (po_node->fanin(0)->isConst()) // const 1
+      if (fanin->isConst()) // const 1
       {
         // Todo: connect const.
         pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
@@ -1141,10 +1142,9 @@ static int node_counter = 0;
           pNodeConst1->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
           Abc_ObjAddFanin(pNet, pNodeConst1);
         }
-        // printf("po %s connect with const node\n", po_node->name().c_str());
         continue;
       }
-      else if (po_node->fanin(0)->isPi()) // pi
+      else if (fanin->isPi()) // pi
       {
         // get the fanout net
         pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
@@ -1163,32 +1163,44 @@ static int node_counter = 0;
         Abc_ObjAddFanin(pNet, pNode);
 
         // connect to the fanin net
-        strcpy(pWord, po_node->fanin(0)->name().c_str());
+        strcpy(pWord, fanin->name().c_str());
         pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
         Abc_ObjAddFanin(pNode, pNet);
         continue;
       }
-      else // And
+      else if ((best_sol_->weight_[fanin] > 1)) // fanin has mult-fanout.
       {
-        std::string exp = po_node->name() + " = " + funcs[po_node].function();
-        const std::vector<Node *> &inputs = best_sol_->sol_[po_node->fanin(0)]->inputs();
-        std::string true_value_hex = expToTrueValue(inputs, exp);
-        strcpy(pWord, true_value_hex.c_str());
-        char *pSop = Abc_SopFromTruthHex(pWord);
         // get the fanout net
-        strcpy(pWord, po_node->name().c_str());
         pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
         assert(pNet);
-        pNode = Abc_NtkCreateNode(pNtkNetlist);
-        pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+        strcpy(pWord, fanin->name().c_str());
+        pNode = Abc_NtkFindNode(pNtkNetlist, pWord);
         Abc_ObjAddFanin(pNet, pNode);
-        // connect to the fanin net
-        for (int i = 0; i < inputs.size(); ++i)
-        {
-          strcpy(pWord, inputs[i]->name().c_str());
+        continue;
+      }
+      else // And
+      {
+        if (best_sol_->weight_[fanin] == 1) {  // fanin has only one fanout, merge po and fanin.
+          std::string exp = po_node->name() + " = " + funcs[po_node].function();
+          const std::vector<Node *> &inputs = best_sol_->sol_[fanin]->inputs();
+          std::string true_value_hex = expToTrueValue(inputs, exp);
+          strcpy(pWord, true_value_hex.c_str());
+          char *pSop = Abc_SopFromTruthHex(pWord);
+          // get the fanout net
+          strcpy(pWord, po_node->name().c_str());
           pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
           assert(pNet);
-          Abc_ObjAddFanin(pNode, pNet);
+          pNode = Abc_NtkCreateNode(pNtkNetlist);
+          pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+          Abc_ObjAddFanin(pNet, pNode);
+          // connect to the fanin net
+          for (int i = 0; i < inputs.size(); ++i)
+          {
+            strcpy(pWord, inputs[i]->name().c_str());
+            pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
+            assert(pNet);
+            Abc_ObjAddFanin(pNode, pNet);
+          }
         }
       }
     }
