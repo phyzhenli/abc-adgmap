@@ -92,15 +92,15 @@ static int node_counter = 0;
       utility::pruner<pCut, comp_pcut_delay, sizer_pcut, pcut_area> pruner(lut_size);
       if (lut_size == 6)
       {
-        pruner.reset_store_num_upper({0, 0, 1, 2, 2, 2, 3});
+        pruner.reset_store_num_upper({0, 1, 1, 2, 2, 2, 3});
       }
       else if (lut_size == 4)
       {
-        pruner.reset_store_num_upper({0, 0, 4, 6, 6});
+        pruner.reset_store_num_upper({0, 1, 4, 6, 6});
       }
       else if (lut_size == 5)
       {
-        pruner.reset_store_num_upper({0, 0, 1, 2, 4, 5});
+        pruner.reset_store_num_upper({0, 1, 1, 2, 4, 5});
       }
       else
       {
@@ -116,9 +116,6 @@ static int node_counter = 0;
           }
         }
       pruner.collect(this->cuts_, area_oriented);
-    }
-    if (area_oriented == false)
-    {
       min_dep_area_ = cuts_[0];
       for (int i = 1; i != cuts_.size(); ++i)
       {
@@ -1018,6 +1015,7 @@ static int node_counter = 0;
     // printf("exp: %s\n", exp.c_str());
     for (int i = 0; i < inputs.size(); ++i)
     {
+      //qmp.addVar(inputs[i]->name());
       qmp.addVar("n" + std::to_string(inputs[i]->getId()));
     }
     qmp.set_output("O5");
@@ -1101,17 +1099,32 @@ static int node_counter = 0;
           strcpy(pWord, node->name().c_str());
           pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
           assert(pNet);
-          pNode = Abc_NtkCreateNode(pNtkNetlist);
-          Abc_ObjAssignName(pNode, pWord, NULL);
-          pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
-          Abc_ObjAddFanin(pNet, pNode);
-          // connect to the fanin net
-          for (int i = 0; i < inputs.size(); ++i)
+          if (strcmp(pSop, " 0\n") == 0) 
           {
-            strcpy(pWord, inputs[i]->name().c_str());
-            pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
-            assert(pNet);
-            Abc_ObjAddFanin(pNode, pNet);
+            Abc_Obj_t *pNodeConst0 = Abc_NtkCreateNode(pNtkNetlist);
+            pNodeConst0->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+            Abc_ObjAddFanin(pNet, pNodeConst0);
+          }
+          else if (strcmp(pSop, " 1\n") == 0)
+          {
+            Abc_Obj_t *pNodeConst1 = Abc_NtkCreateNode(pNtkNetlist);
+            pNodeConst1->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+            Abc_ObjAddFanin(pNet, pNodeConst1);
+          }
+          else
+          {
+            pNode = Abc_NtkCreateNode(pNtkNetlist);
+            Abc_ObjAssignName(pNode, pWord, NULL);
+            pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+            Abc_ObjAddFanin(pNet, pNode);
+            // connect to the fanin net
+            for (int i = 0; i < inputs.size(); ++i)
+            {
+              strcpy(pWord, inputs[i]->name().c_str());
+              pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
+              assert(pNet);
+              Abc_ObjAddFanin(pNode, pNet);
+            }
           }
         }
       }
@@ -1190,16 +1203,31 @@ static int node_counter = 0;
           strcpy(pWord, po_node->name().c_str());
           pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
           assert(pNet);
-          pNode = Abc_NtkCreateNode(pNtkNetlist);
-          pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
-          Abc_ObjAddFanin(pNet, pNode);
-          // connect to the fanin net
-          for (int i = 0; i < inputs.size(); ++i)
+          if (strcmp(pSop, " 0\n") == 0) 
           {
-            strcpy(pWord, inputs[i]->name().c_str());
-            pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
-            assert(pNet);
-            Abc_ObjAddFanin(pNode, pNet);
+            Abc_Obj_t *pNodeConst0 = Abc_NtkCreateNode(pNtkNetlist);
+            pNodeConst0->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+            Abc_ObjAddFanin(pNet, pNodeConst0);
+          }
+          else if (strcmp(pSop, " 1\n") == 0)
+          {
+            Abc_Obj_t *pNodeConst1 = Abc_NtkCreateNode(pNtkNetlist);
+            pNodeConst1->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+            Abc_ObjAddFanin(pNet, pNodeConst1);
+          }
+          else
+          {
+            pNode = Abc_NtkCreateNode(pNtkNetlist);
+            pNode->pData = Abc_SopRegister((Mem_Flex_t *)pNtkNetlist->pManFunc, pSop);
+            Abc_ObjAddFanin(pNet, pNode);
+            // connect to the fanin net
+            for (int i = 0; i < inputs.size(); ++i)
+            {
+              strcpy(pWord, inputs[i]->name().c_str());
+              pNet = Abc_NtkFindOrCreateNet(pNtkNetlist, pWord);
+              assert(pNet);
+              Abc_ObjAddFanin(pNode, pNet);
+            }
           }
         }
       }
@@ -1345,6 +1373,7 @@ static int node_counter = 0;
   void SimpleGate::expand(int gate_size)
   {
     std::list<Node *> inputs = {root_};
+		std::unordered_set<Node*> in_set;
     std::set<Node *> terminal;
     bool flag = true;
     auto itr = inputs.begin();
@@ -1360,14 +1389,19 @@ static int node_counter = 0;
         for (int i = 0; i < 2; ++i)
         {
           Node *fanin = node->fanin(i);
+          if (in_set.find(fanin) != in_set.end()) {
+            continue;
+          }
           inputs.push_back(fanin);
+					in_set.insert(fanin);
           if (eat(node, i) == false)
             terminal.insert(fanin);
         }
         inputs.erase(itr++);
+				in_set.erase(node);
         internal_.push_back(node);
       }
-      if (itr == inputs.end() || inputs.size() == gate_size)
+      if (itr == inputs.end() || inputs.size() >= gate_size)
         flag = false;
     }
     for (Node *node : inputs)
@@ -1379,25 +1413,18 @@ static int node_counter = 0;
 
   void SimpleGate::SimpleGateEnum(int k, bool area_oriented, std::vector<Node *> &nodes)
   {
-    int pi_num = 0;
-    for (Node *node : inputs_)
-    {
-      pi_num += node->isPi();
-    }
-    trivial_ = pi_num == size();
-
     assert(root_->isChoice() == false);
     if (area_oriented == false)
     {
       root_->cutEnum(k, area_oriented);
-      if (size() == 2 || trivial_)
+      if (size() == 2)
       {
         return;
       }
     }
     else
     {
-      if (size() == 2 || trivial_)
+      if (size() == 2)
       {
         for (auto it = internal_.rbegin(); it != internal_.rend(); ++it)
         {
@@ -1405,7 +1432,6 @@ static int node_counter = 0;
           nodes.push_back(*it);
         }
         root_->cutEnum(k, area_oriented);
-        trivial_ = true;
         return;
       }
     }

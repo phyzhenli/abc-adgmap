@@ -22,7 +22,8 @@
 #define _AGDMAP_H_
 #pragma once
 
-#include "base/main/main.h" // the basic header file of abc
+
+#include "base/main/main.h" // the basic header file of abc 
 #include "utility.h"
 
 namespace AgdMap {
@@ -481,6 +482,8 @@ private:
 //===----------------------------------------------------------------------===//
 class Bin {
 public:
+  friend class Decompose;
+
   Bin(Cut *cut) 
   : root_(nullptr), 
     sign_(cut->sign()),
@@ -532,8 +535,6 @@ public:
   Node *cutEnum(std::vector<Node*>& choice_nodes, const std::set<Node*>& complement, int lut_size, bool area_oriented);
 
   Node *cutsMerge(Node *fanin1, Node *fanin2, const std::set<Node*>& complement, int lut_size, bool area_oriented);
-
-  friend class Decompose;
 
 private:
   Node *root_;
@@ -746,7 +747,7 @@ struct pdec_area {
 //===----------------------------------------------------------------------===//
 class SimpleGate {
 public:
-  SimpleGate(Node *root) : root_(root), trivial_(false) {}
+  SimpleGate(Node *root) : root_(root) {}
   ~SimpleGate() {}
 
 public:
@@ -762,7 +763,6 @@ public:
 
   int   size()    const { return inputs_.size(); }
   Node *root()    const { return root_;          }
-  bool  trivial() const { return trivial_;       }
 
   /**
    * @brief simple gate based cut enumeration
@@ -784,8 +784,6 @@ private:
 
 private:
   Node *root_;
-  // if all inputs of a simple gate are pi, then it is  trivial
-  bool trivial_;
   // the decom solutions
   std::vector<pDec> decompositions_;
   // simple gate inputs
