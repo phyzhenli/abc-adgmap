@@ -6329,6 +6329,12 @@ SOURCE=.\src\proof\acec\acecUtil.c
 
 SOURCE=.\src\proof\acec\acecXor.c
 # End Source File
+# Begin Source File
+
+SOURCE=.\src\agdmap\AgdmapRegister.c
+SOURCE=.\src\agdmap\AgdmapCommand.cpp
+SOURCE=.\src\agdmap\agdmap.cpp
+# End Source File
 # End Group
 # End Group
 # End Group
