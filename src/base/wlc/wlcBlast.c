@@ -1049,8 +1049,7 @@ void Wlc_BlastReduceMatrix2( Gia_Man_t * pNew, Vec_Wec_t * vProds, Vec_Int_t * v
     Vec_IntFree( vTemp );
 }
 
-
-void Wlc_BlastMultiplier3( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA, int nArgB, Vec_Int_t * vRes, int fSigned, int fCla, Vec_Wec_t ** pvProds )
+void Wlc_BlastMultiplier3( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA, int nArgB, Vec_Int_t * vRes, int fSigned, int fCla, Vec_Wec_t ** pvProds, int fVerbose )
 {
     Vec_Wec_t * vProds  = Vec_WecStart( nArgA + nArgB );
     Vec_Wec_t * vLevels = Vec_WecStart( nArgA + nArgB );
@@ -1064,13 +1063,17 @@ void Wlc_BlastMultiplier3( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA
         }
     if ( fSigned )
     {
-        Vec_WecPush( vProds,  nArgA, 1 );
-        Vec_WecPush( vLevels, nArgA, 0 );
+        Vec_WecPush( vProds,  nArgB-1, 1 );
+        Vec_WecPush( vLevels, nArgB-1, 0 );
+
+        Vec_WecPush( vProds,  nArgA-1, 1 );
+        Vec_WecPush( vLevels, nArgA-1, 0 );
 
         Vec_WecPush( vProds,  nArgA+nArgB-1, 1 );
         Vec_WecPush( vLevels, nArgA+nArgB-1, 0 );
     }
-
+    if ( fVerbose )
+        Vec_WecPrint( vProds, 0 );
     if ( pvProds )
         *pvProds = Vec_WecDup(vProds);
     else
@@ -1117,7 +1120,7 @@ void Wlc_BlastDecoder( Gia_Man_t * pNew, int * pNum, int nNum, Vec_Int_t * vTmp,
         Vec_IntPush( vRes, iMint );
     }
 }
-void Wlc_BlastBooth( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA, int nArgB, Vec_Int_t * vRes, int fSigned, int fCla, Vec_Wec_t ** pvProds )
+void Wlc_BlastBooth( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA, int nArgB, Vec_Int_t * vRes, int fSigned, int fCla, Vec_Wec_t ** pvProds, int fVerbose )
 {
     Vec_Wec_t * vProds  = Vec_WecStart( nArgA + nArgB + 3 );
     Vec_Wec_t * vLevels = Vec_WecStart( nArgA + nArgB + 3 );
@@ -1194,7 +1197,10 @@ void Wlc_BlastBooth( Gia_Man_t * pNew, int * pArgA, int * pArgB, int nArgA, int 
         Vec_WecPush( vProds,  k, Neg );
         Vec_WecPush( vLevels, k, 0 );
     }
-    //Vec_WecPrint( vProds, 0 );
+    //Vec_WecShrink( vProds,  nArgA + nArgB );
+    //Vec_WecShrink( vLevels, nArgA + nArgB );   
+    if ( fVerbose )
+        Vec_WecPrint( vProds, 0 );
     //Wlc_BlastPrintMatrix( pNew, vProds, 1 );
     //printf( "Cutoff ID for partial products = %d.\n", Gia_ManObjNum(pNew) );
     if ( pvProds )
@@ -1832,9 +1838,9 @@ Gia_Man_t * Wlc_NtkBitBlast( Wlc_Ntk_t * p, Wlc_BstPar_t * pParIn )
                 if ( Wlc_NtkCountConstBits(pArg0, nRangeMax) < Wlc_NtkCountConstBits(pArg1, nRangeMax) )
                     ABC_SWAP( int *, pArg0, pArg1 );
                 if ( pPar->fBooth )
-                    Wlc_BlastBooth( pNew, pArg0, pArg1, nRange0, nRange1, vRes, fSigned, pPar->fCla, NULL );
+                    Wlc_BlastBooth( pNew, pArg0, pArg1, nRange0, nRange1, vRes, fSigned, pPar->fCla, NULL, pParIn->fVerbose );
                 else if ( pPar->fCla )
-                    Wlc_BlastMultiplier3( pNew, pArg0, pArg1, nRange0, nRange1, vRes, Wlc_ObjIsSignedFanin01(p, pObj), pPar->fCla, NULL );
+                    Wlc_BlastMultiplier3( pNew, pArg0, pArg1, nRange0, nRange1, vRes, Wlc_ObjIsSignedFanin01(p, pObj), pPar->fCla, NULL, pParIn->fVerbose );
                 else
                     Wlc_BlastMultiplier( pNew, pArg0, pArg1, nRangeMax, nRangeMax, vTemp2, vRes, fSigned );
                     //Wlc_BlastMultiplierC( pNew, pArg0, pArg1, nRangeMax, nRangeMax, vTemp2, vRes, fSigned );
@@ -2667,6 +2673,71 @@ Vec_Int_t * Wlc_ComputePerm( Wlc_Ntk_t * pNtk, int nPis )
     return vPerm;
 }
 
+/**Function*************************************************************
+
+  Synopsis    []
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+void Wlc_TransferPioNames( Wlc_Ntk_t * p, Gia_Man_t * pNew )
+{
+    int fSkipBitRange = 0;
+    Wlc_Obj_t * pObj; int i, k;
+    Vec_PtrFreeP( &pNew->vNamesIn );
+    Vec_PtrFreeP( &pNew->vNamesOut );
+    pNew->vNamesIn = Vec_PtrAlloc( Gia_ManPiNum(pNew) );
+    pNew->vNamesOut = Vec_PtrAlloc( Gia_ManPoNum(pNew) );
+    // create input names
+    Wlc_NtkForEachCi( p, pObj, i )
+    if ( Wlc_ObjIsPi(pObj) )
+    {
+        char * pName = Wlc_ObjName(p, Wlc_ObjId(p, pObj));
+        int nRange = Wlc_ObjRange( pObj );
+        if ( fSkipBitRange && nRange == 1 )
+            Vec_PtrPush( pNew->vNamesIn, Abc_UtilStrsav(pName) );
+        else
+            for ( k = 0; k < nRange; k++ )
+            {
+                char Buffer[1000];
+                sprintf( Buffer, "%s[%d]", pName, pObj->Beg < pObj->End ? pObj->Beg+k : pObj->Beg-k );
+                Vec_PtrPush( pNew->vNamesIn, Abc_UtilStrsav(Buffer) );
+                //printf( "Writing %s\n", Buffer );
+            }
+    }    
+    // add real primary outputs
+    Wlc_NtkForEachCo( p, pObj, i )
+    if ( Wlc_ObjIsPo(pObj) )
+    {
+        char * pName = Wlc_ObjName(p, Wlc_ObjId(p, pObj));
+        int nRange = Wlc_ObjRange( pObj );
+        if ( fSkipBitRange && nRange == 1 )
+            Vec_PtrPush( pNew->vNamesOut, Abc_UtilStrsav(pName) );
+        else
+            for ( k = 0; k < nRange; k++ )
+            {
+                char Buffer[1000];
+                sprintf( Buffer, "%s[%d]", pName, pObj->Beg < pObj->End ? pObj->Beg+k : pObj->Beg-k );
+                Vec_PtrPush( pNew->vNamesOut, Abc_UtilStrsav(Buffer) );
+            }
+    }
+    if ( Vec_PtrSize(pNew->vNamesIn) != Gia_ManPiNum(pNew) ) 
+        printf( "The number of input bits (%d) does not match the number of primary inputs (%d) in the current AIG.\n", Vec_PtrSize(pNew->vNamesIn), Gia_ManPiNum(pNew) );
+    if ( Vec_PtrSize(pNew->vNamesOut) != Gia_ManPoNum(pNew) ) 
+        printf( "The number of output bits (%d) does not match the number of primary inputs (%d) in the current AIG.\n", Vec_PtrSize(pNew->vNamesOut), Gia_ManPoNum(pNew) );
+    if ( Vec_PtrSize(pNew->vNamesIn) != Gia_ManPiNum(pNew) || Vec_PtrSize(pNew->vNamesOut) != Gia_ManPoNum(pNew) ) 
+    {
+        Vec_PtrFreeP( &pNew->vNamesIn );
+        Vec_PtrFreeP( &pNew->vNamesOut );
+    }
+    else
+        printf( "Successfully transferred the primary input/output names from the word-level design to the current AIG.\n" );
+}
+    
 ////////////////////////////////////////////////////////////////////////
 ///                       END OF FILE                                ///
 ////////////////////////////////////////////////////////////////////////
