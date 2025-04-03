@@ -28,6 +28,8 @@
 
 namespace AgdMap {
 
+ABC_NAMESPACE_USING_NAMESPACE
+
 class Node;
 class Cut;
 class Para;
